@@ -1,0 +1,54 @@
+@model Voat.Data.Models.BannedDomain
+
+@{
+    ViewBag.Title = "Remove Domain Ban";
+}
+
+<div id="container">
+    <div class="side">
+        @Html.Partial("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+    </div>
+    <div class="content" role="main">
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Remove Domain Ban</div>
+
+                <div class="alert alert-danger">Are you sure you want to remove this ban?</div>
+                @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+                <hr />
+
+                <dl class="dl-horizontal">
+                    <dt>
+                        <label class="control-label col-md-2">Domain:</label>
+                    </dt>
+                    <dd>@Html.DisplayFor(model => model.Domain)</dd>
+                    <dt>
+                        <label class="control-label col-md-2">Banned by:</label>
+                    </dt>
+                    <dd>@Html.DisplayFor(model => model.CreatedBy)</dd>
+                    <dt>
+                        <label class="control-label col-md-2">Banned on:</label>
+                    </dt>
+                    <dd>@Html.DisplayFor(model => model.CreationDate)</dd>
+                    <dt>
+                        <label class="control-label col-md-2">Reason:</label>
+                    </dt>
+                    <dd>@Html.DisplayFor(model => model.Reason)</dd>
+                </dl>
+
+                @using (Html.BeginForm("RemoveDomainBan", "Spam", new { area = "Admin" }, FormMethod.Post))
+                {
+                    @Html.AntiForgeryToken()
+                    @* Posts as "name", not "Domain" — see the note in
+                        RemoveUserBan.cshtml. HiddenFor would render
+                        name="Domain", which binds to nothing. *@
+                    @Html.Hidden("name", Model.Domain)
+                    <br />
+                    <input type="submit" value="Remove ban" class="btn-whoaverse-medium" />
+                    <br /><br />
+                    @Html.ActionLink("Back to banned domains", "BannedDomains", "Spam", new { area = "Admin" }, null)
+                }
+            </div>
+        </div>
+    </div>
+</div>

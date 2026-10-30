@@ -1,0 +1,149 @@
+@model Dictionary<Voat.Domain.Models.ContentItem, IEnumerable<Voat.Domain.Models.ContentUserReport>>
+
+@{
+    ViewBag.Title = "Reports";
+    int? days = ViewBag.Days;
+    int[] ruleid = ViewBag.RuleID;
+    Voat.Domain.Models.ReviewStatus status = ViewBag.ReviewStatus;
+    Voat.Domain.Models.ContentType? type = ViewBag.Type;
+
+    //Marking reviewed is a write: janitors and GlobalBans keep a read-only queue.
+    var canMark = User.IsInAnyRole(new[] {
+        Voat.Domain.Models.UserRole.GlobalAdmin,
+        Voat.Domain.Models.UserRole.Admin,
+        Voat.Domain.Models.UserRole.DelegateAdmin });
+
+    string ruleQuery = (ruleid != null && ruleid.Any()) ? ruleid.First().ToString() : null;
+}
+
+<div id="container">
+    <div class="side">
+        @Html.Partial("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+    </div>
+    <div class="content" role="main">
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Sitewide User Reports</div>
+
+                <p>
+                    @Html.ActionLink("All", "Index", "Reports", new { area = "Admin", days = days, status = status, ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                    @Html.ActionLink("Submissions", "Index", "Reports", new { area = "Admin", type = "Submission", days = days, status = status, ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                    @Html.ActionLink("Comments", "Index", "Reports", new { area = "Admin", type = "Comment", days = days, status = status, ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                    &nbsp;&nbsp;
+                    @Html.ActionLink("Last day", "Index", "Reports", new { area = "Admin", type = type, days = 1, status = status, ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                    @Html.ActionLink("Last 3 days", "Index", "Reports", new { area = "Admin", type = type, days = 3, status = status, ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                    @Html.ActionLink("Last 7 days", "Index", "Reports", new { area = "Admin", type = type, days = 7, status = status, ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                    &nbsp;&nbsp;
+                    @Html.ActionLink("Unreviewed", "Index", "Reports", new { area = "Admin", type = type, days = days, status = "Unreviewed", ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                    @Html.ActionLink("Reviewed", "Index", "Reports", new { area = "Admin", type = type, days = days, status = "Reviewed", ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                    @Html.ActionLink("Any", "Index", "Reports", new { area = "Admin", type = type, days = days, status = "Any", ruleid = ruleQuery }, new { @class = "btn-whoaverse" })
+                </p>
+            </div>
+        </div>
+
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Reports</div>
+
+                @if (Model != null && Model.Count > 0)
+                {
+                    <table class="table table-striped table-condensed">
+                        <thead>
+                            <tr>
+                                <th>Subverse</th>
+                                <th>Type</th>
+                                <th>Content</th>
+                                <th>Reported for</th>
+                                <th>Most recent</th>
+                                @if (canMark)
+                                {
+                                    <th></th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Keys)
+                            {
+                                //The report rows are the source of truth for
+                                //subverse/id — the content object can be null
+                                //when the target has since been deleted.
+                                var reports = Model[item];
+                                var first = reports.FirstOrDefault();
+                                if (first == null)
+                                {
+                                    continue;
+                                }
+
+                                var subverse = first.Subverse;
+                                bool isSubmission = item.ContentType == Voat.Domain.Models.ContentType.Submission;
+                                int id = isSubmission ? (first.SubmissionID ?? 0) : (first.CommentID ?? 0);
+
+                                string contentLabel;
+                                string contentHref = null;
+
+                                if (isSubmission)
+                                {
+                                    contentLabel = item.Submission != null
+                                        ? item.Submission.Title.TruncateAtWord(80)
+                                        : "(submission removed)";
+                                    if (item.Submission != null && id > 0)
+                                    {
+                                        contentHref = Voat.Utilities.VoatUrlFormatter.CommentsPagePath(subverse, id);
+                                    }
+                                }
+                                else
+                                {
+                                    contentLabel = item.Comment != null
+                                        ? (item.Comment.Content ?? String.Empty).TruncateAtWord(80)
+                                        : "(comment removed)";
+                                    if (item.Comment != null && item.Comment.SubmissionID.HasValue && id > 0)
+                                    {
+                                        contentHref = Voat.Utilities.VoatUrlFormatter.CommentsPagePath(subverse, item.Comment.SubmissionID.Value, id);
+                                    }
+                                }
+
+                                @* class="contentReport" on the row itself: the
+                                    mark handler removes the nearest ancestor
+                                    with that class, which is this <tr>. *@
+                                <tr class="contentReport">
+                                    <td><a href="/v/@subverse">@subverse</a></td>
+                                    <td>@(isSubmission ? "Submission" : "Comment")</td>
+                                    <td>
+                                        @if (contentHref != null)
+                                        {
+                                            <a href="@contentHref">@contentLabel</a>
+                                        }
+                                        else
+                                        {
+                                            <text>@contentLabel</text>
+                                        }
+                                    </td>
+                                    <td>
+                                        <ul class="list-unstyled">
+                                            @foreach (var report in reports)
+                                            {
+                                                <li>(@report.Count) @report.Name</li>
+                                            }
+                                        </ul>
+                                    </td>
+                                    <td><time title="@first.MostRecentReportDate" datetime="@first.MostRecentReportDate">@Age.ToRelative(first.MostRecentReportDate) ago</time></td>
+                                    @if (canMark && status != Voat.Domain.Models.ReviewStatus.Reviewed && id > 0)
+                                    {
+                                        <td>
+                                            <input class="btn-whoaverse" value="Ignore" type="button"
+                                                   onclick="javascript:markReportAsReviewed(this, '@subverse', '@item.ContentType', @id);" />
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <span>Wow, nothing here. Time for a vacation.</span>
+                }
+            </div>
+        </div>
+    </div>
+</div>

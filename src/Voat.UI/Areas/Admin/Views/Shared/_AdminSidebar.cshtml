@@ -1,0 +1,53 @@
+@*
+    Admin panel navigation. Renders the sidebar boxes only — every page that
+    includes this supplies its own wrapping <div class="side">.
+
+    Always included with the explicit path:
+
+        @Html.Partial("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+
+    A short partial name resolves against the controller's folder
+    (/Areas/Admin/Views/Spam/, /Areas/Admin/Views/Dashboard/, ...) and
+    /Areas/Admin/Views/Shared/ — but never against the executing view's folder,
+    so a short name 500s the first time it is used from a new controller. The
+    Help pages hit exactly this; the explicit path is the fix.
+*@
+<div class="spacersection spacer">
+    <div class="spacer">
+        <div class="sidecontentbox ">
+            <div class="title">
+                <h1 class="alert-h1">Admin</h1>
+            </div>
+            <ul class="content">
+                <li><a href="/admin">Admin home</a></li>
+                <li><a href="/admin/Users">User lookup</a></li>
+                <li><a href="/admin/Reports">Reports</a></li>
+                <li><a href="/admin/Spam/Ban">Ban utility</a></li>
+                <li><a href="/admin/Spam/BannedUsers">Banned users</a></li>
+                <li><a href="/admin/Spam/BannedDomains">Banned domains</a></li>
+                @* Site settings changes site behaviour, so it is not offered to
+                    the janitor/delegate roles the way the links above are. *@
+                @if (User.IsInAnyRole(new[] {
+                    Voat.Domain.Models.UserRole.GlobalAdmin,
+                    Voat.Domain.Models.UserRole.Admin }))
+                {
+                    <li><a href="/admin/Settings">Site settings</a></li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+<div class="spacersection spacer">
+    <div class="spacer">
+        <div class="sidecontentbox ">
+            <div class="title">
+                <h1 class="alert-h1">Spam Links</h1>
+            </div>
+            <ul class="content">
+                <li><a rel="nofollow" href="/v/ReportSpammers">v/ReportSpammers</a></li>
+                <li><a rel="nofollow" href="/log/banned/user">Public ban log: users</a></li>
+                <li><a rel="nofollow" href="/log/banned/domain">Public ban log: domains</a></li>
+            </ul>
+        </div>
+    </div>
+</div>

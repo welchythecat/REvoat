@@ -17,7 +17,12 @@ namespace Voat.UI.Areas.Admin
     {
         public static void RegisterRoutes(IRouteBuilder routes)
         {
-            RerouteDefaultArea(routes, "Admin", VoatSettings.Instance.AreaMaps, new { controller = "Spam", action = "Ban" });
+            //The area's default fills in the missing trailing segments of the
+            //{area}/{controller}/{action} template, so this is what bare /admin
+            //resolves to. It used to point at Spam/Ban; it is now the
+            //dashboard, which links onward to the ban utility at
+            ///admin/Spam/Ban (that URL is unchanged).
+            RerouteDefaultArea(routes, "Admin", VoatSettings.Instance.AreaMaps, new { controller = "Dashboard", action = "Index" });
         }
         private static void RerouteDefaultArea(IRouteBuilder routes, string areaName, IDictionary<string, string> areaMaps, object defaults = null)
         {

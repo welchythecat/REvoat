@@ -1,0 +1,126 @@
+@model Voat.UI.Areas.Admin.Models.AdminUserDetailViewModel
+
+@{
+    ViewBag.Title = "User Detail";
+}
+
+@* Janitors can read the account summary but cannot change its ban state. *@
+@{
+    var canBan = User.IsInAnyRole(new[] {
+        Voat.Domain.Models.UserRole.GlobalAdmin,
+        Voat.Domain.Models.UserRole.Admin,
+        Voat.Domain.Models.UserRole.DelegateAdmin,
+        Voat.Domain.Models.UserRole.GlobalBans });
+}
+
+<div id="container">
+    <div class="side">
+        @Html.Partial("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+    </div>
+    <div class="content" role="main">
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">User Detail</div>
+
+                <dl class="dl-horizontal">
+                    <dt><label class="control-label">Username</label></dt>
+                    <dd><a href="/user/@Model.UserName">@Model.UserName</a></dd>
+
+                    <dt><label class="control-label">Registered</label></dt>
+                    <dd><time title="@Model.RegistrationDateTime" datetime="@Model.RegistrationDateTime">@Model.RegistrationDateTime</time></dd>
+
+                    <dt><label class="control-label">Last login</label></dt>
+                    <dd>
+                        @if (Model.LastLoginDateTime == default(DateTime))
+                        {
+                            <text>never</text>
+                        }
+                        else
+                        {
+                            <time title="@Model.LastLoginDateTime" datetime="@Model.LastLoginDateTime">@Model.LastLoginDateTime</time>
+                        }
+                    </dd>
+
+                    <dt><label class="control-label">Bio</label></dt>
+                    <dd>@(String.IsNullOrEmpty(Model.Bio) ? "—" : Model.Bio)</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Activity</div>
+                <table class="table table-striped table-condensed">
+                    <tbody>
+                        <tr><td>Submissions</td><td>@Model.SubmissionCount</td></tr>
+                        <tr><td>Comments</td><td>@Model.CommentCount</td></tr>
+                        <tr><td>Submission Contribution Points (SCP)</td><td>@Model.SubmissionPoints</td></tr>
+                        <tr><td>Comment Contribution Points (CCP)</td><td>@Model.CommentPoints</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Global Ban</div>
+
+                @if (Model.IsGloballyBanned)
+                {
+                    <div class="alert alert-danger">This account is globally banned.</div>
+                    <dl class="dl-horizontal">
+                        <dt><label class="control-label">Banned by</label></dt>
+                        <dd>@Model.GlobalBan.CreatedBy</dd>
+                        <dt><label class="control-label">Banned on</label></dt>
+                        <dd><time title="@Model.GlobalBan.CreationDate" datetime="@Model.GlobalBan.CreationDate">@Model.GlobalBan.CreationDate</time></dd>
+                        <dt><label class="control-label">Reason</label></dt>
+                        <dd>@Model.GlobalBan.Reason</dd>
+                    </dl>
+
+                    @if (canBan)
+                    {
+                        <p>
+                            @* Single unban flow, shared with the banned-users list. *@
+                            @Html.ActionLink("Remove this ban", "RemoveUserBan", "Spam",
+                                new { area = "Admin", name = Model.UserName }, new { @class = "btn-whoaverse-medium" })
+                        </p>
+                    }
+                }
+                else
+                {
+                    <p>This account is not banned.</p>
+
+                    @if (canBan)
+                    {
+                        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+                        @using (Html.BeginForm("Ban", "Users", new { area = "Admin" }, FormMethod.Post, null, new { @class = "form-horizontal", role = "form" }))
+                        {
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="name" value="@Model.UserName" />
+                            <div class="form-group">
+                                <label for="reason" class="col-md-4 control-label">Reason</label>
+                                <div class="col-md-6">
+                                    <input type="text" id="reason" name="reason" class="form-control"
+                                           maxlength="500" required autocomplete="off" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="col-md-offset-4 col-md-3">
+                                    <input type="submit" value="Ban globally" class="btn-whoaverse" />
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                @Html.ActionLink("Back to user lookup", "Index", "Users", new { area = "Admin" }, null)
+                &nbsp;|&nbsp;
+                @Html.ActionLink("Banned users", "BannedUsers", "Spam", new { area = "Admin" }, null)
+            </div>
+        </div>
+    </div>
+</div>

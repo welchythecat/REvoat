@@ -1,0 +1,55 @@
+@model Voat.Data.Models.BannedUser
+
+@{
+    ViewBag.Title = "Remove User Ban";
+}
+
+<div id="container">
+    <div class="side">
+        @Html.Partial("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+    </div>
+    <div class="content" role="main">
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Remove User Ban</div>
+
+                <div class="alert alert-danger">Are you sure you want to remove this ban?</div>
+                @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+                <hr />
+
+                <dl class="dl-horizontal">
+                    <dt>
+                        <label class="control-label col-md-2">Username:</label>
+                    </dt>
+                    <dd>@Html.DisplayFor(model => model.UserName)</dd>
+                    <dt>
+                        <label class="control-label col-md-2">Banned by:</label>
+                    </dt>
+                    <dd>@Html.DisplayFor(model => model.CreatedBy)</dd>
+                    <dt>
+                        <label class="control-label col-md-2">Banned on:</label>
+                    </dt>
+                    <dd>@Html.DisplayFor(model => model.CreationDate)</dd>
+                    <dt>
+                        <label class="control-label col-md-2">Reason:</label>
+                    </dt>
+                    <dd>@Html.DisplayFor(model => model.Reason)</dd>
+                </dl>
+
+                @using (Html.BeginForm("RemoveUserBan", "Spam", new { area = "Admin" }, FormMethod.Post))
+                {
+                    @Html.AntiForgeryToken()
+                    @* Posts as "name", not "UserName": the action takes
+                        RemoveUserBanPost(string name), and HiddenFor would
+                        render name="UserName", which binds to nothing and
+                        makes the POST silently bounce back to the list. *@
+                    @Html.Hidden("name", Model.UserName)
+                    <br />
+                    <input type="submit" value="Remove ban" class="btn-whoaverse-medium" />
+                    <br /><br />
+                    @Html.ActionLink("Back to banned users", "BannedUsers", "Spam", new { area = "Admin" }, null)
+                }
+            </div>
+        </div>
+    </div>
+</div>

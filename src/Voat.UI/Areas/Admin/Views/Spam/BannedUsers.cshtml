@@ -1,0 +1,70 @@
+@model PaginatedList<Voat.Data.Models.BannedUser>
+
+@{
+    ViewBag.Title = "Banned Users";
+}
+
+@* Janitors can read this list but cannot change it. *@
+@{
+    var canUnban = User.IsInAnyRole(new[] {
+        Voat.Domain.Models.UserRole.GlobalAdmin,
+        Voat.Domain.Models.UserRole.Admin,
+        Voat.Domain.Models.UserRole.DelegateAdmin,
+        Voat.Domain.Models.UserRole.GlobalBans });
+}
+
+<div id="container">
+    <div class="side">
+        @Html.Partial("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+    </div>
+    <div class="content" role="main">
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Banned Users</div>
+
+                @if (Model != null && Model.Any())
+                {
+                    <table class="table table-striped table-condensed">
+                        <thead>
+                            <tr>
+                                <th>User name</th>
+                                <th>Reason</th>
+                                <th>Banned by</th>
+                                <th>Age</th>
+                                @if (canUnban)
+                                {
+                                    <th></th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ban in Model)
+                            {
+                                <tr>
+                                    <td><a href="/user/@ban.UserName">@ban.UserName</a></td>
+                                    <td>@ban.Reason</td>
+                                    <td>@ban.CreatedBy</td>
+                                    <td><time title="@ban.CreationDate" datetime="@ban.CreationDate">@Age.ToRelative(ban.CreationDate) ago</time></td>
+                                    @if (canUnban)
+                                    {
+                                        <td>
+                                            @Html.ActionLink("remove", "RemoveUserBan", "Spam",
+                                                new { area = "Admin", name = ban.UserName }, null)
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p>There are no globally banned users.</p>
+                }
+
+                <p>@Html.ActionLink("Add a ban", "Ban", "Spam", new { area = "Admin" }, null)</p>
+            </div>
+        </div>
+        @Html.DisplayFor(model => Model, "IPaginatedList")
+    </div>
+</div>

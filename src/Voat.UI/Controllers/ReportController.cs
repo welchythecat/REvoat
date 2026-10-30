@@ -49,8 +49,23 @@ namespace Voat.Controllers
         {
             days = days.EnsureRange(1, 7);
 
-            if (subverse.IsEqual("all"))
+            //Sitewide report history is global-staff only. Before this check
+            //the "all" branch set subverse = null and fell out of the else
+            //that performs the AccessReports check, so any logged-in account
+            //could read every report on the site.
+            bool sitewide = subverse.IsEqual("all");
+
+            if (sitewide)
             {
+                if (!User.IsInAnyRole(new[] {
+                    UserRole.GlobalAdmin,
+                    UserRole.Admin,
+                    UserRole.DelegateAdmin,
+                    UserRole.GlobalBans,
+                    UserRole.GlobalJanitor }))
+                {
+                    return ErrorView(ErrorViewModel.GetErrorViewModel(ErrorType.Unauthorized));
+                }
                 subverse = null;
             }
             else
@@ -69,8 +84,11 @@ namespace Voat.Controllers
                 ViewBag.RuleID = ruleid;
                 ViewBag.ReviewStatus = status;
 
-                //Add Mod Menu
-                if (!subverse.IsEqual("all"))
+                //Add Mod Menu. Gate on the captured flag, not on the
+                //normalized subverse — by this point subverse is null for the
+                //sitewide case, so the old !subverse.IsEqual("all") test was
+                //always true and built a mod menu with Name = null.
+                if (!sitewide)
                 {
                     ViewBag.NavigationViewModel = new Models.ViewModels.NavigationViewModel()
                     {

@@ -4141,7 +4141,7 @@ namespace Voat.Data
         {
             var q = new DapperQuery();
 
-            q.Select = $"SELECT rr.\"Subverse\", rr.\"UserName\", rr.\"SubmissionID\", rr.\"CommentID\", rr.\"RuleSetID\", r.\"Name\", r.\"Description\", COUNT(*) AS \"Count\", MAX(rr.\"CreationDate\") AS \"MostRecent\" FROM {SqlFormatter.Table("RuleReport", "rr", null, "NOLOCK")} INNER JOIN {SqlFormatter.Table("RuleSet", "r", null, "NOLOCK")} ON rr.\"RuleSetID\" = r.\"ID\"";
+            q.Select = $"SELECT rr.\"Subverse\", rr.\"UserName\", rr.\"SubmissionID\", rr.\"CommentID\", rr.\"RuleSetID\", r.\"Name\", r.\"Description\", COUNT(*) AS \"Count\", MAX(rr.\"CreationDate\") AS \"MostRecentReportDate\" FROM {SqlFormatter.Table("RuleReport", "rr", null, "NOLOCK")} INNER JOIN {SqlFormatter.Table("RuleSet", "r", null, "NOLOCK")} ON rr.\"RuleSetID\" = r.\"ID\"";
 
             //--LEFT JOIN Submission s WITH (NOLOCK) ON s.ID = rr.SubmissionID
             //--LEFT JOIN Comment c WITH (NOLOCK) ON c.ID = rr.CommentID
@@ -4153,7 +4153,7 @@ namespace Voat.Data
             //    (rr.CreationDate <= @EndDate OR @EndDate IS NULL)
             //    AND {typeFilter}
             q.Where = "(rr.\"Subverse\" = @Subverse OR @Subverse IS NULL) AND (rr.\"CreationDate\" >= @StartDate OR @StartDate IS NULL) AND (rr.\"CreationDate\" <= @EndDate OR @EndDate IS NULL)";
-            q.OrderBy = "\"MostRecent\" DESC";
+            q.OrderBy = "\"MostRecentReportDate\" DESC";
 
             if (contentType != null)
             {

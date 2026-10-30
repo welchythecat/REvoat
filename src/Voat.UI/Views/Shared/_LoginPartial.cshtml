@@ -51,6 +51,14 @@
                 }
                 <span class="separator">|</span>
                 <span class="user">@Html.ActionLink("Manage", "Manage", "Account", routeValues: new {area = "" }, htmlAttributes: new { title = "Manage", id = "manage" })</span>
+                @if (User.IsInAnyRole(new[] { Voat.Domain.Models.UserRole.GlobalAdmin, Voat.Domain.Models.UserRole.Admin, Voat.Domain.Models.UserRole.DelegateAdmin, Voat.Domain.Models.UserRole.GlobalBans, Voat.Domain.Models.UserRole.GlobalJanitor }))
+                {
+                    @* Hardcoded href on purpose: generating an admin-area URL from a
+                        non-admin page has no ambient area value, so ActionLink would
+                        fall through to the Default route and 500 on view lookup. *@
+                    <span class="separator">|</span>
+                    <span class="user"><a href="/admin" title="Site administration">admin</a></span>
+                }
                 <span class="separator">|</span>
                 <a id="nightmodetoggle" onclick="toggleNightMode()" title="Toggle Night Mode"></a>
                 <span class="separator">|</span>

@@ -54,5 +54,50 @@ namespace Voat.Data
 
             return CommandResponse.FromStatus(Status.Success);
         }
+
+        /// <summary>
+        /// Removes global bans. This is the other half of BanGlobally — before
+        /// it existed a ban was permanent short of editing the database by hand.
+        /// Idempotent by design: removing a ban that is already gone is not an
+        /// error, so two admins racing on the same row is not a failure.
+        /// </summary>
+        /// <remarks>
+        /// Name matching is case-insensitive, mirroring UserBan. Usernames are
+        /// stored in original case and domains are lower-cased on insert, so
+        /// both sides are lower-cased here rather than assuming one convention.
+        /// </remarks>
+        [Authorize(Roles = "GlobalAdmin,Admin,DelegateAdmin,GlobalBans")]
+        public async Task<CommandResponse> UnbanGlobally(IEnumerable<GenericReference<BanType>> banList)
+        {
+            DemandAuthentication();
+
+            foreach (var banItem in banList)
+            {
+                string tablename, columnname;
+
+                switch (banItem.Type)
+                {
+                    case BanType.Domain:
+                        tablename = "BannedDomain";
+                        columnname = "Domain";
+                        break;
+                    case BanType.User:
+                        tablename = "BannedUser";
+                        columnname = "UserName";
+                        break;
+                    default:
+                        continue;
+                }
+
+                var delete = new DapperDelete();
+                delete.Delete = SqlFormatter.DeleteBlock(SqlFormatter.Table(tablename));
+                delete.Where = $"lower(\"{columnname}\") = @Value";
+                delete.Parameters.Add("Value", (banItem.Name ?? String.Empty).ToLower());
+
+                await _db.Connection.ExecuteAsync(delete.ToString(), delete.Parameters);
+            }
+
+            return CommandResponse.FromStatus(Status.Success);
+        }
     }
 }

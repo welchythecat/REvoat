@@ -1,0 +1,49 @@
+@{
+    ViewData["Title"] = "Admin";
+}
+@model Voat.Domain.Models.SitewideStats
+<div id="container">
+
+    <div class="side">
+        @Html.Partial("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+    </div>
+    <div class="content" role="main">
+
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Sitewide Statistics</div>
+                <table class="table table-striped table-condensed">
+                    <tbody>
+                        <tr>
+                            <td><span class="glyphicon glyphicon-user" aria-hidden="true"></span> Registered users</td>
+                            <td>@Model.TotalUsers</td>
+                        </tr>
+                        <tr>
+                            <td><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New users, last 7 days</td>
+                            <td>@Model.NewUsersLastSevenDays</td>
+                        </tr>
+                        <tr>
+                            <td><span class="glyphicon glyphicon-file" aria-hidden="true"></span> Submissions</td>
+                            <td>@Model.TotalSubmissions</td>
+                        </tr>
+                        <tr>
+                            <td><span class="glyphicon glyphicon-comment" aria-hidden="true"></span> Comments</td>
+                            <td>@Model.TotalComments</td>
+                        </tr>
+                        <tr>
+                            <td><span class="glyphicon glyphicon-th-list" aria-hidden="true"></span> Subverses</td>
+                            <td>@Model.TotalSubverses</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>
+                    Counts are totals since the site started. Use the sidebar for
+                    <a href="/admin/Users">user lookup</a>, the
+                    <a href="/admin/Reports">reports queue</a> and the
+                    <a href="/admin/Spam/Ban">ban utility</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>
