@@ -30,6 +30,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Voat.Configuration;
 using Voat.Data;
+using Voat.Domain.Models;
 using Voat.RulesEngine;
 using Voat.Utilities;
 
@@ -60,8 +61,14 @@ namespace Voat.Rules
             {
                 return base.CreateOutcome(RuleResult.Denied, "Subverse name is reserved and can not be used");
             }
+            //Read the creation gates here so they ride the connection the
+            //checks below already open rather than opening a second one.
+            SubverseCreationPolicy policy;
+
             using (var repo = new Repository())
             {
+                policy = repo.GetSubverseCreationPolicy();
+
                 name = repo.ToCorrectSubverseCasing(name);
                 if (!String.IsNullOrEmpty(name))
                 {
@@ -74,22 +81,28 @@ namespace Voat.Rules
                 }
             }
 
+            //All three gates below are owner-configurable from the admin panel.
+            //A gate that is switched off is skipped entirely and its threshold
+            //is not consulted.
             //Age
-            var registrationDate = context.UserData.Information.RegistrationDate;
-            int accountAgeInDays = Repository.CurrentDate.Subtract(registrationDate).Days;
-            if (accountAgeInDays < VoatSettings.Instance.MinimumAccountAgeInDaysForSubverseCreation)
+            if (policy.AccountAgeEnabled)
             {
-                return base.CreateOutcome(RuleResult.Denied, $"Sorry, subverse creation requires an account age of {VoatSettings.Instance.MinimumAccountAgeInDaysForSubverseCreation} days");
+                var registrationDate = context.UserData.Information.RegistrationDate;
+                int accountAgeInDays = Repository.CurrentDate.Subtract(registrationDate).Days;
+                if (accountAgeInDays < policy.MinimumAccountAgeDays)
+                {
+                    return base.CreateOutcome(RuleResult.Denied, $"Sorry, subverse creation requires an account age of {policy.MinimumAccountAgeDays} days");
+                }
             }
             //CCP
-            if (context.UserData.Information.CommentPoints.Sum < VoatSettings.Instance.MinimumCommentPointsForSubverseCreation)
+            if (policy.CommentPointsEnabled && context.UserData.Information.CommentPoints.Sum < policy.MinimumCommentPoints)
             {
-                return base.CreateOutcome(RuleResult.Denied, $"Sorry, subverse creation requires a minimum of {VoatSettings.Instance.MinimumCommentPointsForSubverseCreation} comment (CCP) points");
+                return base.CreateOutcome(RuleResult.Denied, $"Sorry, subverse creation requires a minimum of {policy.MinimumCommentPoints} comment (CCP) points");
             }
             //SCP
-            if (context.UserData.Information.SubmissionPoints.Sum < VoatSettings.Instance.MinimumSubmissionPointsForSubverseCreation)
+            if (policy.SubmissionPointsEnabled && context.UserData.Information.SubmissionPoints.Sum < policy.MinimumSubmissionPoints)
             {
-                return base.CreateOutcome(RuleResult.Denied, $"Sorry, subverse creation requires a minimum of {VoatSettings.Instance.MinimumSubmissionPointsForSubverseCreation} submission (SCP) points");
+                return base.CreateOutcome(RuleResult.Denied, $"Sorry, subverse creation requires a minimum of {policy.MinimumSubmissionPoints} submission (SCP) points");
             }
 
             //rules checkd in base class

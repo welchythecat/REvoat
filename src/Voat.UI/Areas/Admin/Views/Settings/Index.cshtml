@@ -1,0 +1,109 @@
+@{
+    ViewData["Title"] = "Admin";
+}
+@model Voat.UI.Areas.Admin.Models.SiteSettingsViewModel
+<div id="container">
+
+    <div class="side">
+        @Html.Partial("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+    </div>
+    <div class="content" role="main">
+
+        <div class="row nomargin">
+            <div class="well col-md-12">
+                <div class="alert-title">Subverse creation</div>
+
+                @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
+                @using (Html.BeginForm("Index", "Settings", new { area = "Admin" }, FormMethod.Post, null, new { @class = "form-horizontal", role = "form" }))
+                {
+                    @Html.AntiForgeryToken()
+
+                    <p>
+                        These are the checks an account must pass before it can create a
+                        subverse. Untick a check to skip it &mdash; its number is then ignored.
+                    </p>
+
+                    <h4>Account age</h4>
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.SubverseCreationAgeGateEnabled,
+                            "Require a minimum account age",
+                            new { @class = "col-md-4 control-label" })
+                        <div class="col-md-6">
+                            @Html.CheckBoxFor(m => m.SubverseCreationAgeGateEnabled, new { @class = "form-control" })
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.SubverseCreationMinAccountAgeDays,
+                            "Minimum account age (days)",
+                            new { @class = "col-md-4 control-label" })
+                        <div class="col-md-6">
+                            @* Tag helper rather than TextBoxFor: TextBoxFor fixes
+                                type="text" and drops a type given in htmlAttributes.
+                                The name still comes from the model property, so the
+                                POST binds it. *@
+                            <input asp-for="SubverseCreationMinAccountAgeDays" type="number"
+                                   class="form-control" min="0" max="3650" />
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h4>Comment points (CCP)</h4>
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.SubverseCreationCcpGateEnabled,
+                            "Require a minimum number of comment points",
+                            new { @class = "col-md-4 control-label" })
+                        <div class="col-md-6">
+                            @Html.CheckBoxFor(m => m.SubverseCreationCcpGateEnabled, new { @class = "form-control" })
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.SubverseCreationMinCommentPoints,
+                            "Minimum comment points",
+                            new { @class = "col-md-4 control-label" })
+                        <div class="col-md-6">
+                            <input asp-for="SubverseCreationMinCommentPoints" type="number"
+                                   class="form-control" min="0" max="100000" />
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h4>Submission points (SCP)</h4>
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.SubverseCreationScpGateEnabled,
+                            "Require a minimum number of submission points",
+                            new { @class = "col-md-4 control-label" })
+                        <div class="col-md-6">
+                            @Html.CheckBoxFor(m => m.SubverseCreationScpGateEnabled, new { @class = "form-control" })
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.SubverseCreationMinSubmissionPoints,
+                            "Minimum submission points",
+                            new { @class = "col-md-4 control-label" })
+                        <div class="col-md-6">
+                            <input asp-for="SubverseCreationMinSubmissionPoints" type="number"
+                                   class="form-control" min="0" max="100000" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="col-md-offset-4 col-md-3">
+                            <input type="submit" value="Save settings" class="btn-whoaverse" />
+                        </div>
+                    </div>
+                }
+
+                <p>
+                    <strong>These values are stored in the database and, once saved,
+                    override <code>appsettings.json</code> for these settings.</strong>
+                    Changes take effect immediately &mdash; no restart is needed &mdash;
+                    and survive restarts and upgrades.
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>

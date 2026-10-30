@@ -225,10 +225,17 @@ CREATE TABLE IF NOT EXISTS "SessionTracker"(
 	"Subverse" varchar(20) NOT NULL,
 	"CreationDate" timestamp NOT NULL);
 
-CREATE TABLE IF NOT EXISTS "SitePage"( 
+CREATE TABLE IF NOT EXISTS "SitePage"(
 	"ID" int NOT NULL,
 	"Name" varchar(50) NOT NULL,
 	"Content" varchar,
+	"UpdatedBy" varchar(50),
+	"LastUpdateDate" timestamp);
+
+CREATE TABLE IF NOT EXISTS "SiteSetting"(
+	"ID" int NOT NULL,
+	"Name" varchar(100) NOT NULL,
+	"Value" varchar,
 	"UpdatedBy" varchar(50),
 	"LastUpdateDate" timestamp);
 
@@ -463,6 +470,7 @@ CREATE SEQUENCE IF NOT EXISTS "moderatorinvitation_id_seq" INCREMENT BY 1 MINVAL
 CREATE SEQUENCE IF NOT EXISTS "rulereport_id_seq" INCREMENT BY 1 MINVALUE 1 START WITH 1 OWNED BY "RuleReport"."ID";
 CREATE SEQUENCE IF NOT EXISTS "ruleset_id_seq" INCREMENT BY 1 MINVALUE 1 START WITH 1 OWNED BY "RuleSet"."ID";
 CREATE SEQUENCE IF NOT EXISTS "sitepage_id_seq" INCREMENT BY 1 MINVALUE 1 START WITH 1 OWNED BY "SitePage"."ID";
+CREATE SEQUENCE IF NOT EXISTS "sitesetting_id_seq" INCREMENT BY 1 MINVALUE 1 START WITH 1 OWNED BY "SiteSetting"."ID";
 CREATE SEQUENCE IF NOT EXISTS "submission_id_seq" INCREMENT BY 1 MINVALUE 1 START WITH 1 OWNED BY "Submission"."ID";
 CREATE SEQUENCE IF NOT EXISTS "submissionsavetracker_id_seq" INCREMENT BY 1 MINVALUE 1 START WITH 1 OWNED BY "SubmissionSaveTracker"."ID";
 CREATE SEQUENCE IF NOT EXISTS "submissionvotetracker_id_seq" INCREMENT BY 1 MINVALUE 1 START WITH 1 OWNED BY "SubmissionVoteTracker"."ID";
@@ -508,6 +516,7 @@ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_RuleReport') THEN
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_RuleSet') THEN ALTER TABLE "RuleSet" ADD CONSTRAINT "PK_RuleSet" PRIMARY KEY ("ID"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_SessionTracker') THEN ALTER TABLE "SessionTracker" ADD CONSTRAINT "PK_SessionTracker" PRIMARY KEY ("SessionID","Subverse"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_SitePage') THEN ALTER TABLE "SitePage" ADD CONSTRAINT "PK_SitePage" PRIMARY KEY ("ID"); END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_SiteSetting') THEN ALTER TABLE "SiteSetting" ADD CONSTRAINT "PK_SiteSetting" PRIMARY KEY ("ID"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_StickiedSubmission') THEN ALTER TABLE "StickiedSubmission" ADD CONSTRAINT "PK_StickiedSubmission" PRIMARY KEY ("SubmissionID","Subverse"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_Submission') THEN ALTER TABLE "Submission" ADD CONSTRAINT "PK_Submission" PRIMARY KEY ("ID"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_SubmissionRemovalLog') THEN ALTER TABLE "SubmissionRemovalLog" ADD CONSTRAINT "PK_SubmissionRemovalLog" PRIMARY KEY ("SubmissionID"); END IF;
@@ -531,6 +540,7 @@ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_VoteOutcome') THE
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_VoteRestriction') THEN ALTER TABLE "VoteRestriction" ADD CONSTRAINT "PK_VoteRestriction" PRIMARY KEY ("ID"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_VoteTracker') THEN ALTER TABLE "VoteTracker" ADD CONSTRAINT "PK_VoteTracker" PRIMARY KEY ("ID"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'IX_SitePage_Name') THEN ALTER TABLE "SitePage" ADD CONSTRAINT "IX_SitePage_Name" UNIQUE ("Name"); END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'IX_SiteSetting_Name') THEN ALTER TABLE "SiteSetting" ADD CONSTRAINT "IX_SiteSetting_Name" UNIQUE ("Name"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'IX_Subverse') THEN ALTER TABLE "Subverse" ADD CONSTRAINT "IX_Subverse" UNIQUE ("ID"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_ApiClient_ApiPermissionPolicy') THEN ALTER TABLE "ApiClient" ADD CONSTRAINT "FK_ApiClient_ApiPermissionPolicy" FOREIGN KEY ("ApiPermissionPolicyID") REFERENCES "ApiPermissionPolicy" ( "ID"); END IF;
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_ApiClient_ApiThrottlePolicy') THEN ALTER TABLE "ApiClient" ADD CONSTRAINT "FK_ApiClient_ApiThrottlePolicy" FOREIGN KEY ("ApiThrottlePolicyID") REFERENCES "ApiThrottlePolicy" ( "ID"); END IF;
@@ -591,6 +601,7 @@ ALTER TABLE "RuleReport" ALTER COLUMN "ID" SET DEFAULT nextval('"rulereport_id_s
 ALTER TABLE "RuleSet" ALTER COLUMN "ID" SET DEFAULT nextval('"ruleset_id_seq"');
 ALTER TABLE "RuleSet" ALTER COLUMN "IsActive" SET DEFAULT true;
 ALTER TABLE "SitePage" ALTER COLUMN "ID" SET DEFAULT nextval('"sitepage_id_seq"');
+ALTER TABLE "SiteSetting" ALTER COLUMN "ID" SET DEFAULT nextval('"sitesetting_id_seq"');
 ALTER TABLE "Submission" ALTER COLUMN "DownCount" SET DEFAULT 0;
 ALTER TABLE "Submission" ALTER COLUMN "ID" SET DEFAULT nextval('"submission_id_seq"');
 ALTER TABLE "Submission" ALTER COLUMN "IsAdult" SET DEFAULT false;
@@ -645,6 +656,7 @@ ALTER TABLE "RuleReport" ALTER COLUMN "CreationDate" SET DEFAULT (now() at time 
 ALTER TABLE "RuleSet" ALTER COLUMN "CreationDate" SET DEFAULT (now() at time zone 'utc');
 ALTER TABLE "SessionTracker" ALTER COLUMN "CreationDate" SET DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE "SitePage" ALTER COLUMN "LastUpdateDate" SET DEFAULT (now() at time zone 'utc');
+ALTER TABLE "SiteSetting" ALTER COLUMN "LastUpdateDate" SET DEFAULT (now() at time zone 'utc');
 ALTER TABLE "SubverseSet" ALTER COLUMN "CreationDate" SET DEFAULT (now() at time zone 'utc');
 ALTER TABLE "SubverseSetList" ALTER COLUMN "CreationDate" SET DEFAULT (now() at time zone 'utc');
 ALTER TABLE "SubverseSetSubscription" ALTER COLUMN "CreationDate" SET DEFAULT (now() at time zone 'utc');
@@ -674,6 +686,7 @@ select setval('"moderatorinvitation_id_seq"', COALESCE((select max("ID") from "M
 select setval('"rulereport_id_seq"', COALESCE((select max("ID") from "RuleReport"), 0) + 1, false);
 select setval('"ruleset_id_seq"', COALESCE((select max("ID") from "RuleSet"), 0) + 1, false);
 select setval('"sitepage_id_seq"', COALESCE((select max("ID") from "SitePage"), 0) + 1, false);
+select setval('"sitesetting_id_seq"', COALESCE((select max("ID") from "SiteSetting"), 0) + 1, false);
 select setval('"submission_id_seq"', COALESCE((select max("ID") from "Submission"), 0) + 1, false);
 select setval('"submissionsavetracker_id_seq"', COALESCE((select max("ID") from "SubmissionSaveTracker"), 0) + 1, false);
 select setval('"submissionvotetracker_id_seq"', COALESCE((select max("ID") from "SubmissionVoteTracker"), 0) + 1, false);

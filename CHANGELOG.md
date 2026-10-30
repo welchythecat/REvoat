@@ -7,6 +7,150 @@ Phase 2 foundation, Phase 3 data, Phase 4 web/security, Phase 5 tests, Phase 6 p
 ## [Unreleased]
 
 ### Post-Phase 6 — user-requested changes
+- **Admin-editable subverse-creation gates** (user request: "when I try to
+  create a subverse I get this error I want to disable and add a new feature in
+  the admin panel where you can enable the 'Sorry, subverse creation requires an
+  account age of 30 days' feature or disable it and if I want to enable it I
+  want to change how old your account age has to be to make a subverse";
+  scope widened at the user's request from the age gate alone to all three
+  gates in the rule). `CreateSubverseRule` had three hardcoded checks — account
+  age (`MinimumAccountAgeInDaysForSubverseCreation`, 30), comment points
+  (`MinimumCommentPointsForSubverseCreation`, 10) and submission points
+  (`MinimumSubmissionPointsForSubverseCreation`, 10) — so the only way to change
+  any of them was to edit `appsettings.json` and rebuild, and that file is baked
+  into the Docker image, so even a manual edit is lost on
+  `docker compose up -d --build` and on `scripts/upgrade.sh`. There is now a
+  **Site settings** page at `/admin/Settings` with an on/off switch and a
+  threshold for each of the three.
+  **Access control:** `GlobalAdmin,Admin` only, narrower than ban/unban.
+  `[Authorize(Roles = "GlobalAdmin,Admin")]` sits on both GET and POST
+  *in addition to* the five-role class attribute on `BaseAdminController`;
+  ASP.NET Core combines multiple `[Authorize]` attributes with AND (no custom
+  `AuthorizeFilter` or `FallbackPolicy` exists here), so the effective set is
+  exactly those two roles. The sidebar link is hidden from the other three
+  roles.
+  **Storage:** a new `SiteSetting` key/value table (`ID`, `Name` UNIQUE,
+  `Value`, `UpdatedBy`, `LastUpdateDate`), modelled on `SitePage` layer for
+  layer — raw SQL scripts, EF model + DbSet, `Repository_SiteSetting`. Six rows,
+  two per gate: `subverseCreation.minAccountAge.enabled` / `.days`,
+  `subverseCreation.minCommentPoints.enabled` / `.points`, and
+  `subverseCreation.minSubmissionPoints.enabled` / `.points`. Rows are **not
+  seeded**: a missing row means "fall back to `appsettings.json`", which keeps
+  today's behaviour on a fresh install *and* leaves operators who change the
+  config value unaffected.
+  **Effect:** `CreateSubverseRule` reads the policy through the same
+  `Repository` connection it already opens, and the rules engine caches rule
+  *instances* but never outcomes — so a saved change applies to the very next
+  subverse creation with no cache invalidation and no restart. The lookup is
+  deliberately **synchronous** (`GetSubverseCreationPolicy`), because
+  `Rule.EvaluateRule`/`EvaluateRule` cannot await. A gate that is switched off
+  is skipped outright and its threshold is not consulted, so unticking one is
+  unambiguous regardless of what the number next to it says.
+  **Gotchas:** once saved, the stored row overrides `appsettings.json` for that
+  key from then on — the page says so. A value that will not parse is treated
+  as absent rather than being allowed to disable a gate by accident, and both
+  the reader and the admin page clamp to the same ranges (0–3650 days,
+  0–100000 points) so a hand-edited row cannot produce a negative or
+  unreachable threshold. Existing installs need one schema pass
+  (`scripts/upgrade.sh` re-runs `setup.sql` automatically; a manual deploy must
+  run it once).
+  **Not included, by decision:** no general-purpose settings editor, and no
+  audit trail — the row carries `UpdatedBy`/`LastUpdateDate` like `SitePage`
+  does.
+- **Unban from the admin panel silently did nothing** (user report: "I can't
+  remove/unban the bantest99 account"). `RemoveUserBan.cshtml` /
+  `RemoveDomainBan.cshtml` submitted `@Html.HiddenFor(model => model.UserName)`
+  (and `.Domain`), which renders `name="UserName"` / `name="Domain"`, while the
+  POST actions are `RemoveUserBanPost(string name)` and
+  `RemoveDomainBanPost(string name)`. MVC model binding matches on parameter
+  name, so `name` arrived **null**, `FindUserBan(null)` returned null, and the
+  action redirected straight back to the list — a clean 302 with no error and
+  the ban row untouched. The GET confirm page was unaffected (`?name=x` binds
+  correctly), which is why the flow looked healthy right up to the click. Both
+  forms now post `name`, matching the parameter every link into this flow
+  already uses (`Spam/RemoveUserBan?name=x`, and the unban link on
+  `Users/Detail`). `UsersController.Ban` was already posting `name="name"` and
+  was not affected. **Gotcha worth remembering:** `HiddenFor` derives the input
+  name from the *model* property, not from the action parameter — when a form
+  posts to an action that takes a flat `string`, the two must be named the same
+  or the request succeeds and binds nothing.
+- **Sitewide admin panel** (user request: "add a better admin panel or improve
+  the current one as the current one kinda sucks"). Until now `/admin` was a
+  single global-ban form that nothing linked to, and it had a real hole: you
+  could ban a user or domain but **never unban** — no code path deleted from
+  `BannedUser`/`BannedDomain`, so a mistaken ban was permanent short of editing
+  the database by hand. The per-subverse moderator toolbox was already
+  complete; it was the sitewide panel that was missing.
+  **Access control:** the existing Identity roles only, never
+  `VOAT_SITE_OWNERS`. Read anything (dashboard, lists, lookup, reports) —
+  `GlobalAdmin,Admin,DelegateAdmin,GlobalBans,GlobalJanitor`, inherited from
+  `BaseAdminController`'s class attribute. Ban / unban —
+  `GlobalAdmin,Admin,DelegateAdmin,GlobalBans`, copied onto each mutating
+  action. Mark reports reviewed — `GlobalAdmin,Admin,DelegateAdmin` only, so
+  janitors and `GlobalBans` get a read-only queue. Enforcement is doubled at
+  the command layer (`OnAuthorization`); the `[Authorize]` on `Repository`
+  methods is decorative and was never relied on.
+  **Routing:** the Admin area's default now resolves bare `/admin` to
+  `Dashboard/Index` instead of `Spam/Ban`. The ban utility is unchanged at
+  `/admin/Spam/Ban` (linked from the sidebar). Bare `/admin/Spam` now 404s.
+  Parameters go in query strings — the area route has no `{id}` segment.
+  New pages pass `area = "Admin"` explicitly to `ActionLink`/`BeginForm`, and
+  the shared sidebar partial is included by explicit `~/Areas/Admin/...` path,
+  because short partial names resolve against the *controller* folder and 500.
+  **Navigation:** one link in `_LoginPartial` (renders on every page,
+  independent of the dashboard/legacy-menu cookie), gated on the five global
+  roles so normal users and anonymous visitors see nothing. Hardcoded
+  `href="/admin"` on purpose — generating an admin-area URL from a non-admin
+  page has no ambient area value and falls through to the Default route.
+  **Unban:** new `GlobalUnbanCommand`, written to match `GlobalBanCommand`
+  stage for stage. It deliberately does *not* require the account to still
+  exist (a stale ban on a deleted account must remain removable, and
+  `GlobalBanCommand`'s existence check is right for banning but wrong for
+  unbanning). `Repository.UnbanGlobally` deletes via `DapperDelete` and is
+  idempotent — two admins racing on the same row is not a failure for whoever
+  finishes second. Matching is case-insensitive on both sides: usernames are
+  stored in original case and domains lowercased on insert. **Cache eviction
+  is half the unban** — `QueryBannedUsers`/`QueryBannedDomains` cache for an
+  hour, so without evicting `CachingKey.BannedDomains()`/`BannedUsers()` the
+  unban is invisible to `GlobalBanRule`, `UserHelper.IsUserGloballyBanned`,
+  messaging, SignalR and report submission for up to an hour. UI is
+  GET-confirm/POST per subverse-moderation convention: `BannedUsers`/
+  `BannedDomains` lists (reusing the existing cached queries, so zero new list
+  SQL) with remove links, plus a detail page that shows ban facts and links
+  into the same confirm flow — one code path, no duplication.
+  **Authorization hole fixed:** `/v/all/about/reports` set `subverse = null`
+  and fell out of the `else` branch that performs the `AccessReports` check, so
+  **any logged-in user could read every report on the site**. It now requires
+  the five global-staff roles and returns `Unauthorized` otherwise. The
+  per-subverse branch is untouched — moderators with `AccessReports` work
+  exactly as before. Fixed in the same hunk: the mod-menu gate tested
+  `!subverse.IsEqual("all")` *after* normalization, so it was always true and
+  built a menu with `Name = null`; it now gates on a captured `sitewide` flag.
+  **Dashboard:** five uncached single-table `COUNT(*)`s (users, 7-day signups,
+  submissions, comments, subverses). Deliberately no caching — user counts
+  change on every signup, and the invalidation design would cost more than the
+  queries on a low-traffic site. **Central trap:** `AspNetUsers` lives on
+  `CONSTANTS.CONNECTION_USERS`, not the content connection; running those
+  counts on `Repository._db` fails at *runtime* with a missing-table error,
+  not at compile time. Dates go through `AddDynamicParams`, not
+  `Parameters.Add` (npgsql#972).
+  **Gotchas:** jQuery loads after `@RenderBody()`, so all new pages are
+  script-free and the reports queue's mark button uses a click-time inline
+  `onclick` into the existing `markReportAsReviewed` rather than document-ready
+  code. Razor views compile into the assembly — every view change needs
+  `docker compose up -d --build app`. `enableRoles: true` /
+  `enabledRoles: ["*"]` must stay in `appsettings.json` or `IsInAnyRole`
+  returns false for everyone and every admin command dies. Drive-by fix:
+  `GetRuleReports` aliased `MAX(CreationDate)` as `"MostRecent"` while the
+  model property is `MostRecentReportDate`, and with no custom Dapper type map
+  that field has always been `default(DateTime)` — the alias (and its
+  `ORDER BY`) now match the property. Test config had roles disabled, so
+  `IsInAnyRole` was false for every principal under test and no role-gated
+  command could be tested on its success path; `test/Voat.Tests/appsettings.json`
+  now enables them the same way the UI config does.
+  **Not included, by decision:** site-settings editor · role assignment UI ·
+  subverse enable/disable · account deletion · `VOAT_SITE_OWNERS` for access
+  control · a newest-signups name list · caching on the stats queries.
 - **Operator upgrade / backup / restore, without losing data** (user request:
   "include a easy way to upgrade to a new release of the REvoat without losing
   data"). New `scripts/lib.sh`, `scripts/backup.sh`, `scripts/upgrade.sh`,
