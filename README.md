@@ -3,6 +3,8 @@
 ---
 [![Also check out NewRuqqus](https://img.shields.io/badge/Also%20check%20out-NEWruqqus-blue?style=plastic&logo=github&logoColor=white)](https://github.com/welchythecat/NEWruqqus)
 
+<div align="center">
+
 # REvoat
 
 REvoat is a new and improved version of voat (a now-defunct social media site)
