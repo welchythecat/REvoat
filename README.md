@@ -16,7 +16,11 @@ Read the installation guide here: https://github.com/welchythecat/REvoat/blob/mo
 
 **SOL** - `8NAwwC7pTCteMrf61uoiQYTZAoYEurWJ51gYtCgdHuM2`
 
+# Support my friend's site
 
+Make sure to support my friend u/nightstryke reddit other Voat-like site, but they use their own version of Voat instead of mine still; you should spread some love on his site
+
+https://voatse.com/
 
 ---
 
