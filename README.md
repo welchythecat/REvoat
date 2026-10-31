@@ -1,6 +1,7 @@
 <img width="2000" height="800" alt="VoatTextLogo" src="https://github.com/user-attachments/assets/c564ea14-c802-4269-8068-9ac2d713ced5" />
 
 ---
+[![Also check out NewRuqqus](https://img.shields.io/badge/Also%20check%20out-NEWruqqus-blue?style=plastic&logo=github&logoColor=white)](https://github.com/welchythecat/NEWruqqus)
 
 # REvoat
 
