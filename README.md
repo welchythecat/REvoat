@@ -8,6 +8,7 @@
 # REvoat
 
 REvoat is a new and improved version of voat (a now-defunct social media site)
+**THIS PROJECT WAS MADE USING AI**
 
 # Installation
 
